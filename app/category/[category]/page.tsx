@@ -7,7 +7,7 @@ import EntityCard from "@/components/EntityCard";
 interface CategoryPageProps { params: { category: string } }
 
 export function generateStaticParams() {
-  return siteConfig.categories.map((cat) => ({ category: encodeURIComponent(cat) }));
+  return siteConfig.categories.map((cat) => ({ category: cat }));
 }
 
 export function generateMetadata({ params }: CategoryPageProps): Metadata {
