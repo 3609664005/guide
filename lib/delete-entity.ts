@@ -6,19 +6,11 @@ import { cookies } from "next/headers";
 import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/session";
 
-// ============================================================
-// 类型
-// ============================================================
-
 interface EntityItem {
   id: string;
   name: string;
   [key: string]: unknown;
 }
-
-// ============================================================
-// slug 校验
-// ============================================================
 
 function isValidSlug(slug: unknown): slug is string {
   return (
@@ -29,15 +21,11 @@ function isValidSlug(slug: unknown): slug is string {
   );
 }
 
-// ============================================================
-// 本地文件系统
-// ============================================================
-
 const DATA_DIR = path.join(process.cwd(), "data");
-const ENTITIES_FILE = "entities.json";
+const ENTITIES_FILE = "data/entities.json";
 
 function readLocalEntities(): EntityItem[] {
-  const filePath = path.join(DATA_DIR, ENTITIES_FILE);
+  const filePath = path.join(DATA_DIR, "entities.json");
   try {
     const raw = fs.readFileSync(filePath, "utf-8");
     return JSON.parse(raw) as EntityItem[];
@@ -47,13 +35,9 @@ function readLocalEntities(): EntityItem[] {
 }
 
 function writeLocalEntities(entities: EntityItem[]): void {
-  const filePath = path.join(DATA_DIR, ENTITIES_FILE);
+  const filePath = path.join(DATA_DIR, "entities.json");
   fs.writeFileSync(filePath, JSON.stringify(entities, null, 2) + "\n", "utf-8");
 }
-
-// ============================================================
-// GitHub API
-// ============================================================
 
 function getGitHubConfig() {
   return {
@@ -150,17 +134,9 @@ async function putToGitHub(
   return { ok: true };
 }
 
-// ============================================================
-// 查找
-// ============================================================
-
 function findIndex(entities: EntityItem[], slug: string): number {
   return entities.findIndex((e) => String(e.id).trim() === slug);
 }
-
-// ============================================================
-// 核心：删除实体
-// ============================================================
 
 export async function deleteEntity(
   slug: string,
