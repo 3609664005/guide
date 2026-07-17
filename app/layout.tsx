@@ -11,6 +11,9 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.siteName}`,
   },
   description: siteConfig.siteDescription,
+  other: {
+  'baidu-site-verification': '<meta name="baidu-site-verification" content="codeva-MAU8dgWrwl" />',
+},
   openGraph: {
     title: siteConfig.siteName,
     description: siteConfig.siteDescription,

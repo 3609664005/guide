@@ -5,6 +5,15 @@ import { validateEntity, updateGitHubFile } from "@/lib/github";
 import { getAllEntities } from "@/lib/entities";
 import type { Entity } from "@/lib/entities";
 
+export async function GET(request: NextRequest) {
+  try {
+    const entities = getAllEntities();
+    return NextResponse.json(entities);
+  } catch {
+    return NextResponse.json([]);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getIronSession<SessionData>(request, new NextResponse(), sessionOptions);
