@@ -1,51 +1,65 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import siteConfig from "@/site.config";
-import entitiesData from "@/data/entities.json";
 import { deleteEntity } from "@/lib/delete-entity";
 
-const typedEntities = entitiesData as unknown as Array<{
+interface EntityRow {
   id: string; name: string; category: string; summary: string; lastConfirmedDate: string;
-}>;
+}
 
 const PAGE_SIZE = 10;
 
 export default function EntitiesListPage() {
+  const [entities, setEntities] = useState<EntityRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [page, setPage] = useState(1);
   const [deleting, setDeleting] = useState<Set<string>>(new Set());
 
-  const filtered = useMemo(() => {
-    let list = typedEntities;
-    if (filterCategory) list = list.filter((e) => e.category === filterCategory);
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((e) => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q));
-    }
-    return list;
-  }, [search, filterCategory]);
-
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useEffect(() => {
+    fetch("/admin/api/entities")
+      .then((r) => r.json())
+      .then((data) => setEntities(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleDelete = async (slug: string, entityName: string) => {
     if (!window.confirm(`确定要删除「${entityName}」吗？此操作不可撤销。`)) return;
     setDeleting((prev) => new Set(prev).add(slug));
     try {
       await deleteEntity(slug, entityName);
-      window.location.reload();
+      setEntities((prev) => prev.filter((e) => e.id !== slug));
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "删除失败，请稍后重试";
+      alert(msg);
+    } finally {
       setDeleting((prev) => {
         const next = new Set(prev);
         next.delete(slug);
         return next;
       });
-      const msg = err instanceof Error ? err.message : "删除失败，请稍后重试";
-      alert(msg);
     }
   };
+
+  const filtered = useMemo(() => {
+    let list = entities;
+    if (filterCategory) list = list.filter((e) => e.category === filterCategory);
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter((e) => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q));
+    }
+    return list;
+  }, [entities, search, filterCategory]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  if (loading) {
+    return <div className="text-center py-16 text-gray-500">加载中...</div>;
+  }
 
   return (
     <div>
@@ -96,4 +110,20 @@ export default function EntitiesListPage() {
                 </tr>
               );
             })}
-        
+            {paged.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">暂无匹配的实体</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-30">上一页</button>
+          <span className="text-sm text-gray-500">第 {page} / {totalPages} 页</span>
+          <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-30">下一页</button>
+        </div>
+      )}
+    </div>
+  );
+}
