@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   },
   description: siteConfig.siteDescription,
   other: {
-  'baidu-site-verification': '<meta name="baidu-site-verification" content="codeva-YoNYAItxRX" />',
+  'baidu-site-verification': '<meta name="baidu-site-verification" content="codeva-MAU8dgWrwl" />',
 },
   openGraph: {
     title: siteConfig.siteName,
