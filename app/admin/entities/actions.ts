@@ -5,9 +5,21 @@ import path from "path";
 import { cookies } from "next/headers";
 import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/session";
-import { getAllEntities } from "@/lib/entities";
 
-/** slug 校验：非空，只允许字母数字连字符，最长 100 */
+// ============================================================
+// 类型
+// ============================================================
+
+interface EntityItem {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+// ============================================================
+// slug 校验
+// ============================================================
+
 function isValidSlug(slug: unknown): slug is string {
   return (
     typeof slug === "string" &&
@@ -17,65 +29,103 @@ function isValidSlug(slug: unknown): slug is string {
   );
 }
 
+// ============================================================
+// 本地文件系统
+// ============================================================
+
+const DATA_DIR = path.join(process.cwd(), "data");
+const ENTITIES_FILE = "entities.json";
+
+function readLocalEntities(): EntityItem[] {
+  const filePath = path.join(DATA_DIR, ENTITIES_FILE);
+  try {
+    const raw = fs.readFileSync(filePath, "utf-8");
+    return JSON.parse(raw) as EntityItem[];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalEntities(entities: EntityItem[]): void {
+  const filePath = path.join(DATA_DIR, ENTITIES_FILE);
+  fs.writeFileSync(filePath, JSON.stringify(entities, null, 2) + "\n", "utf-8");
+}
+
+// ============================================================
+// GitHub API
+// ============================================================
+
 function getGitHubConfig() {
   return {
-    token: process.env.GITHUB_TOKEN,
-    owner: process.env.GITHUB_OWNER,
-    repo: process.env.GITHUB_REPO,
+    token: process.env.GITHUB_TOKEN || "",
+    owner: process.env.GITHUB_OWNER || "",
+    repo: process.env.GITHUB_REPO || "",
     branch: process.env.GITHUB_BRANCH || "main",
   };
 }
 
-/** 本地环境直接读写 JSON */
-async function deleteLocal(slug: string, entityName: string) {
-  const dataPath = path.join(process.cwd(), "data", "entities.json");
-  const raw = fs.readFileSync(dataPath, "utf-8");
-  const entities = JSON.parse(raw);
-
-  const originalLength = entities.length;
-  const filtered = entities.filter((e: { id: string }) => e.id !== slug);
-
-  if (filtered.length === originalLength) {
-    throw new Error(`未找到 slug 为 "${slug}" 的实体`);
-  }
-
-  fs.writeFileSync(dataPath, JSON.stringify(filtered, null, 2) + "\n", "utf-8");
-  console.log(`[Local] Deleted entity: ${entityName} (${slug})`);
+function hasGitHubConfig(): boolean {
+  const cfg = getGitHubConfig();
+  return !!(cfg.token && cfg.owner && cfg.repo);
 }
 
-/** GitHub API 删除 */
-async function deleteViaGitHub(slug: string, entityName: string) {
+async function fetchFromGitHub(): Promise<{
+  entities: EntityItem[];
+  sha: string;
+} | null> {
   const { token, owner, repo, branch } = getGitHubConfig();
-  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/data/entities.json?ref=${branch}`;
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${ENTITIES_FILE}?ref=${branch}`;
 
-  // Step 1: GET 当前文件
-  const getRes = await fetch(apiUrl, {
+  const res = await fetch(apiUrl, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/vnd.github+json",
     },
+    cache: "no-store",
   });
 
-  if (!getRes.ok) {
-    throw new Error(`读取文件失败 (${getRes.status})`);
+  if (!res.ok) {
+    console.error(`[GitHub GET] 失败: ${res.status}`);
+    return null;
   }
 
-  const fileData = await getRes.json();
-  const sha: string = fileData.sha;
-  const content = Buffer.from(fileData.content, "base64").toString("utf-8");
-  const entities = JSON.parse(content);
-
-  // Step 2: 过滤
-  const originalLength = entities.length;
-  const filtered = entities.filter((e: { id: string }) => e.id !== slug);
-
-  if (filtered.length === originalLength) {
-    throw new Error(`未找到 slug 为 "${slug}" 的实体`);
+  const fileData = await res.json();
+  if (!fileData.content || !fileData.sha) {
+    console.error("[GitHub GET] 响应缺少 content/sha");
+    return null;
   }
 
-  // Step 3: PUT 提交
-  const newContent = JSON.stringify(filtered, null, 2);
-  const putRes = await fetch(apiUrl, {
+  // Base64 解码（去除换行符）
+  const rawContent = (fileData.content as string).replace(/\s/g, "");
+  const decoded = Buffer.from(rawContent, "base64").toString("utf-8");
+
+  let entities: EntityItem[];
+  try {
+    entities = JSON.parse(decoded);
+  } catch {
+    console.error("[GitHub GET] JSON 解析失败");
+    return null;
+  }
+
+  if (!Array.isArray(entities)) {
+    console.error("[GitHub GET] 内容不是数组");
+    return null;
+  }
+
+  return { entities, sha: fileData.sha as string };
+}
+
+async function putToGitHub(
+  entities: EntityItem[],
+  sha: string,
+  commitMessage: string
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { token, owner, repo, branch } = getGitHubConfig();
+  const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${ENTITIES_FILE}`;
+
+  const newContent = JSON.stringify(entities, null, 2);
+
+  const res = await fetch(apiUrl, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -83,45 +133,125 @@ async function deleteViaGitHub(slug: string, entityName: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      message: `删除实体: ${entityName}`,
+      message: commitMessage,
       content: Buffer.from(newContent, "utf-8").toString("base64"),
       sha,
       branch,
     }),
   });
 
-  if (putRes.status === 409) {
-    throw new Error("保存失败，文件已被他人修改，请刷新后重试");
+  if (res.status === 409) {
+    return { ok: false, message: "保存失败，文件已被他人修改，请刷新后重试" };
   }
 
-  if (!putRes.ok) {
-    throw new Error("删除失败，请稍后重试");
+  if (!res.ok) {
+    return { ok: false, message: `GitHub API 错误 (${res.status})` };
   }
+
+  return { ok: true };
 }
 
-/**
- * 删除实体（Server Action）
- * 仅在服务端执行，Token 绝不暴露给前端
- */
-export async function deleteEntity(slug: string, entityName: string): Promise<{ success: boolean }> {
+// ============================================================
+// 查找（精确匹配 id 字段）
+// ============================================================
+
+function findIndex(entities: EntityItem[], slug: string): number {
+  return entities.findIndex((e) => String(e.id).trim() === slug);
+}
+
+// ============================================================
+// 核心：删除实体
+// ============================================================
+
+export async function deleteEntity(
+  slug: string,
+  entityName: string
+): Promise<{ success: boolean }> {
   // 1. 鉴权
   const session = await getIronSession<SessionData>(cookies(), sessionOptions);
   if (!session.isLoggedIn) {
     throw new Error("UNAUTHORIZED");
   }
 
-  // 2. slug 校验
+  // 2. 校验 slug
   if (!isValidSlug(slug)) {
     throw new Error("INVALID_SLUG");
   }
 
-  // 3. 执行删除
-  const isLocal = process.env.NODE_ENV === "development" || !process.env.GITHUB_TOKEN;
+  const isDev = process.env.NODE_ENV === "development";
+  const useGitHub = hasGitHubConfig();
 
-  if (isLocal) {
-    await deleteLocal(slug, entityName);
-  } else {
-    await deleteViaGitHub(slug, entityName);
+  // ============================================================
+  // 纯本地模式（无 GitHub 配置）
+  // ============================================================
+  if (!useGitHub) {
+    const entities = readLocalEntities();
+    const idx = findIndex(entities, slug);
+    if (idx === -1) {
+      throw new Error(`未找到 slug 为 "${slug}" 的实体`);
+    }
+    entities.splice(idx, 1);
+    writeLocalEntities(entities);
+    return { success: true };
+  }
+
+  // ============================================================
+  // 有 GitHub 配置：优先从 GitHub 删除，本地同步
+  // ============================================================
+
+  // 先尝试从本地删除（dev 模式下本地文件可写）
+  let deletedLocally = false;
+  if (isDev) {
+    const localEntities = readLocalEntities();
+    const localIdx = findIndex(localEntities, slug);
+    if (localIdx !== -1) {
+      localEntities.splice(localIdx, 1);
+      writeLocalEntities(localEntities);
+      deletedLocally = true;
+    }
+  }
+
+  // 从 GitHub 获取并删除
+  const ghResult = await fetchFromGitHub();
+  if (!ghResult) {
+    if (deletedLocally) {
+      return { success: true };
+    }
+    throw new Error("无法连接 GitHub API，请检查 GITHUB_TOKEN 和仓库配置");
+  }
+
+  const { entities, sha } = ghResult;
+  const ghIdx = findIndex(entities, slug);
+
+  if (ghIdx === -1) {
+    // GitHub 上找不到该实体
+    if (deletedLocally) {
+      return { success: true };
+    }
+
+    // 检查本地是否有（帮助用户排查）
+    const localEntities = readLocalEntities();
+    const localIdx = findIndex(localEntities, slug);
+
+    if (localIdx !== -1) {
+      throw new Error(
+        `该实体存在于本地部署文件中，但 GitHub 仓库的 entities.json 中没有找到它。` +
+        `请确认：(1) GitHub 仓库地址和分支是否正确；` +
+        `(2) entities.json 是否已提交到 GitHub。` +
+        `（本地路径：data/entities.json，GitHub 仓库：${getGitHubConfig().owner}/${getGitHubConfig().repo}）`
+      );
+    }
+
+    throw new Error(`未找到 slug 为 "${slug}" 的实体`);
+  }
+
+  // 从 GitHub 数组中移除
+  entities.splice(ghIdx, 1);
+
+  // PUT 写回
+  const putResult = await putToGitHub(entities, sha, `删除实体: ${entityName}`);
+  if (!putResult.ok) {
+    throw new Error(putResult.message);
   }
 
   return { success: true };
