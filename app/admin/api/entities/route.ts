@@ -4,7 +4,23 @@ import { sessionOptions, SessionData } from "@/lib/session";
 import { validateEntity, updateGitHubFile } from "@/lib/github";
 import { getAllEntities } from "@/lib/entities";
 import type { Entity } from "@/lib/entities";
+import fs from "fs";
+import path from "path";
 
+// ========== GET：返回当前实体列表（供前端动态获取） ==========
+export async function GET(request: NextRequest) {
+  try {
+    const dataPath = path.join(process.cwd(), "data", "entities.json");
+    const raw = fs.readFileSync(dataPath, "utf-8");
+    const entities = JSON.parse(raw);
+    return NextResponse.json(entities);
+  } catch {
+    // 回退到编译时导入的数据
+    return NextResponse.json(getAllEntities());
+  }
+}
+
+// ========== POST：新增/编辑实体（原有逻辑不变） ==========
 export async function POST(request: NextRequest) {
   try {
     const session = await getIronSession<SessionData>(request, new NextResponse(), sessionOptions);
