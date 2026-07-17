@@ -1,200 +1,71 @@
-"use client";
-import { useState, useMemo, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import siteConfig from "@/site.config";
-import { deleteEntity } from "./actions";
+import { NextRequest, NextResponse } from "next/server";
+import { getIronSession } from "iron-session";
+import { sessionOptions, SessionData } from "@/lib/session";
+import { validateEntity, updateGitHubFile } from "@/lib/github";
+import { getAllEntities } from "@/lib/entities";
+import type { Entity } from "@/lib/entities";
+import fs from "fs";
+import path from "path";
 
-interface EntityRow {
-  id: string;
-  name: string;
-  category: string;
-  summary: string;
-  lastConfirmedDate: string;
+export async function GET(request: NextRequest) {
+  try {
+    const dataPath = path.join(process.cwd(), "data", "entities.json");
+    const raw = fs.readFileSync(dataPath, "utf-8");
+    const localEntities = JSON.parse(raw);
+    return NextResponse.json(localEntities);
+  } catch {
+    return NextResponse.json(getAllEntities());
+  }
 }
 
-const PAGE_SIZE = 10;
-
-export default function EntitiesListPage() {
-  const router = useRouter();
-  const [entities, setEntities] = useState<EntityRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filterCategory, setFilterCategory] = useState("");
-  const [page, setPage] = useState(1);
-  const [deleting, setDeleting] = useState<Set<string>>(new Set());
-
-  const fetchEntities = useCallback(async () => {
-    try {
-      const res = await fetch("/admin/api/entities");
-      if (res.ok) {
-        const data = await res.json();
-        setEntities(data);
-      }
-    } catch (err) {
-      console.error("获取实体列表失败:", err);
-    } finally {
-      setLoading(false);
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getIronSession<SessionData>(request, new NextResponse(), sessionOptions);
+    if (!session.isLoggedIn) {
+      return NextResponse.json({ error: "未登录" }, { status: 401 });
     }
-  }, []);
 
-  useEffect(() => {
-    fetchEntities();
-  }, [fetchEntities]);
-
-  const handleDelete = async (slug: string, entityName: string) => {
-    if (!window.confirm(`确定要删除「${entityName}」吗？此操作不可撤销。`)) return;
-
-    setDeleting((prev) => new Set(prev).add(slug));
-    try {
-      await deleteEntity(slug, entityName);
-      await fetchEntities();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "删除失败，请稍后重试";
-      if (msg === "UNAUTHORIZED") {
-        alert("未登录或登录已过期，请重新登录");
-        router.push("/admin/login");
-      } else if (msg === "INVALID_SLUG") {
-        alert("无效的实体标识");
-      } else {
-        alert(msg);
-      }
-    } finally {
-      setDeleting((prev) => {
-        const next = new Set(prev);
-        next.delete(slug);
-        return next;
-      });
+    const body = await request.json();
+    const validation = validateEntity(body);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.errors.join("；") }, { status: 400 });
     }
-  };
 
-  const filtered = useMemo(() => {
-    let list = entities;
-    if (filterCategory) list = list.filter((e) => e.category === filterCategory);
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (e) => e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q)
-      );
+    const newEntity: Entity = {
+      id: body.id,
+      name: body.name,
+      category: body.category,
+      summary: body.summary || "",
+      address: body.address || "",
+      lat: body.lat,
+      lon: body.lon,
+      priceRange: body.priceRange,
+      tags: Array.isArray(body.tags) ? body.tags : [],
+      openingHours: body.openingHours,
+      lastConfirmedDate: body.lastConfirmedDate || new Date().toISOString().slice(0, 10),
+      personalNote: body.personalNote || "",
+      imageUrl: body.imageUrl || "/images/placeholder.svg",
+      detailFields: body.detailFields || {},
+    };
+
+    const allEntities = getAllEntities();
+    const existingIndex = allEntities.findIndex((e) => e.id === body.id);
+
+    if (existingIndex >= 0) {
+      allEntities[existingIndex] = newEntity;
+    } else {
+      allEntities.push(newEntity);
     }
-    return list;
-  }, [entities, search, filterCategory]);
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    const newContent = JSON.stringify(allEntities, null, 2);
+    const commitMsg = existingIndex >= 0
+      ? `更新实体: ${newEntity.name}`
+      : `新增实体: ${newEntity.name}`;
 
-  if (loading) {
-    return <div className="text-center py-16 text-gray-500">加载中...</div>;
+    await updateGitHubFile("data/entities.json", newContent, commitMsg);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "保存失败";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">📋 实体管理</h1>
-        <Link
-          href="/admin/entities/new"
-          className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
-        >
-          + 新增实体
-        </Link>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          placeholder="搜索名称或 slug..."
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <select
-          value={filterCategory}
-          onChange={(e) => { setFilterCategory(e.target.value); setPage(1); }}
-          className="px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-        >
-          <option value="">全部分类</option>
-          {siteConfig.categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-500">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium">名称</th>
-              <th className="text-left px-4 py-3 font-medium">分类</th>
-              <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">简介</th>
-              <th className="text-left px-4 py-3 font-medium">核实日期</th>
-              {/* === 操作列：编辑 + 删除 === */}
-              <th className="text-left px-4 py-3 font-medium">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paged.map((e) => {
-              const isDeleting = deleting.has(e.id);
-              return (
-                <tr key={e.id} className="border-t border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{e.name}</td>
-                  <td className="px-4 py-3 text-gray-600">{e.category}</td>
-                  <td className="px-4 py-3 text-gray-500 hidden sm:table-cell max-w-[200px] truncate">
-                    {e.summary}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{e.lastConfirmedDate}</td>
-                  {/* === 操作列：编辑 + 删除按钮 === */}
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <Link
-                      href={`/admin/entities/${e.id}/edit`}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      编辑
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(e.id, e.name)}
-                      disabled={isDeleting}
-                      className="ml-3 text-red-600 hover:text-red-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isDeleting ? "删除中..." : "删除"}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-            {paged.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                  暂无匹配的实体
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-4">
-          <button
-            onClick={() => setPage(Math.max(1, page - 1))}
-            disabled={page === 1}
-            className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-30"
-          >
-            上一页
-          </button>
-          <span className="text-sm text-gray-500">
-            第 {page} / {totalPages} 页
-          </span>
-          <button
-            onClick={() => setPage(Math.min(totalPages, page + 1))}
-            disabled={page === totalPages}
-            className="px-3 py-1 text-sm border rounded hover:bg-gray-100 disabled:opacity-30"
-          >
-            下一页
-          </button>
-        </div>
-      )}
-    </div>
-  );
 }
