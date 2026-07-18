@@ -24,7 +24,7 @@ export function generateJsonLd(entity: Entity): Record<string, unknown> {
     address: {
       "@type": "PostalAddress",
       streetAddress: entity.address,
-      addressLocality: "三亚",
+      addressLocality: "万宁",
       addressCountry: "CN",
     },
     dateModified: entity.lastConfirmedDate,

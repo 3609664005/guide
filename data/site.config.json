@@ -1,15 +1,15 @@
 {
-  "siteName": "三亚本地指南",
-  "siteDescription": "三亚吃喝玩乐实地指南 — 所有推荐均经实测验证并带有时间戳，为你提供靠谱的本地实体消费参考。",
-  "city": "三亚",
+  "siteName": "万宁本地指南",
+  "siteDescription": "万宁吃喝玩乐实地指南 — 所有推荐均经实测验证并带有时间戳，为你提供靠谱的本地实体消费参考。",
+  "city": "万宁",
   "categories": ["餐厅", "咖啡馆", "冲浪店", "民宿", "景点"],
-  "baseUrl": "https://sanya-local-guide.example.com",
+  "baseUrl": "https://wanning-local-guide.example.com",
   "about": {
-    "title": "关于三亚本地指南",
+    "title": "关于万宁本地指南",
     "sections": [
       {
         "heading": "我们是谁",
-        "body": "三亚本地指南是一份由本地爱好者维护的实地推荐清单。我们亲自走访每一家店铺，记录真实的体验与感受，帮助你快速找到靠谱的去处。"
+        "body": "万宁本地指南是一份由本地爱好者维护的实地推荐清单。我们亲自走访每一家店铺，记录真实的体验与感受，帮助你快速找到靠谱的去处。"
       },
       {
         "heading": "信息采集标准",
