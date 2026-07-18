@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getIronSession } from "iron-session";
-import { sessionOptions, SessionData } from "@/lib/session";
+import { getSession } from "@/lib/session";
+import { SessionData } from "@/lib/session";
 import { validateSiteConfig, updateGitHubFile } from "@/lib/github";
 import siteConfig from "@/site.config";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getIronSession<SessionData>(request, new NextResponse(), sessionOptions);
+    const session = await getSession();
     if (!session.isLoggedIn) {
       return NextResponse.json({ error: "未登录" }, { status: 401 });
     }
