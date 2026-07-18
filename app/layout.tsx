@@ -11,8 +11,8 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.siteName}`,
   },
   description: siteConfig.siteDescription,
-  verification: {
-    baidu: 'codeva-MAU8dgWrwl',
+  other: {
+    'baidu-site-verification': 'codeva-MAU8dgWrwl',
   },
   alternates: {
     canonical: siteConfig.baseUrl,
