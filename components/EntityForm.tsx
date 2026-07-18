@@ -4,12 +4,14 @@ import { useRouter } from "next/navigation";
 import siteConfig from "@/site.config";
 
 interface DetailField { key: string; value: string }
+interface FaqItem { question: string; answer: string }
 
 interface EntityFormData {
   id: string; name: string; category: string; summary: string; address: string;
   priceRange: string; tags: string; openingHours: string; lastConfirmedDate: string;
   personalNote: string; imageUrl: string; lat: string; lon: string;
   detailFields: DetailField[];
+  faq: FaqItem[];
 }
 
 interface EntityFormProps {
@@ -30,6 +32,7 @@ export default function EntityForm({ initialData, isEditing }: EntityFormProps) 
       lastConfirmedDate: new Date().toISOString().slice(0, 10), personalNote: "",
       imageUrl: "/images/placeholder.svg", lat: "", lon: "",
       detailFields: [{ key: "", value: "" }, { key: "", value: "" }],
+      faq: [{ question: "", answer: "" }],
     }
   );
 
@@ -54,6 +57,26 @@ export default function EntityForm({ initialData, isEditing }: EntityFormProps) 
     setForm((prev) => ({
       ...prev,
       detailFields: prev.detailFields.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateFaq = (index: number, key: keyof FaqItem, value: string) => {
+    setForm((prev) => {
+      const items = [...prev.faq];
+      items[index] = { ...items[index], [key]: value };
+      return { ...prev, faq: items };
+    });
+  };
+
+  const addFaq = () => {
+    setForm((prev) => ({ ...prev, faq: [...prev.faq, { question: "", answer: "" }] }));
+  };
+
+  const removeFaq = (index: number) => {
+    if (form.faq.length <= 1) return;
+    setForm((prev) => ({
+      ...prev,
+      faq: prev.faq.filter((_, i) => i !== index),
     }));
   };
 
@@ -84,6 +107,7 @@ export default function EntityForm({ initialData, isEditing }: EntityFormProps) 
         lat: form.lat ? parseFloat(form.lat) : undefined,
         lon: form.lon ? parseFloat(form.lon) : undefined,
         detailFields: detailFieldsObj,
+        faq: form.faq.filter((f) => f.question.trim() && f.answer.trim()),
       };
 
       const res = await fetch("/admin/api/entities", {
@@ -104,6 +128,7 @@ export default function EntityForm({ initialData, isEditing }: EntityFormProps) 
             lastConfirmedDate: new Date().toISOString().slice(0, 10), personalNote: "",
             imageUrl: "/images/placeholder.svg", lat: "", lon: "",
             detailFields: [{ key: "", value: "" }, { key: "", value: "" }],
+      faq: [{ question: "", answer: "" }],
           });
         }
       }
@@ -146,7 +171,35 @@ export default function EntityForm({ initialData, isEditing }: EntityFormProps) 
         </div>
       </div>
 
-      {/* detailFields 动态键值对 */}
+      {/* FAQ */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-gray-900">常见问答 (FAQ)</h3>
+          <button type="button" onClick={addFaq} className="text-xs text-blue-600 hover:text-blue-800">+ 添加问答</button>
+        </div>
+        <div className="space-y-3">
+          {form.faq.map((f, i) => (
+            <div key={i} className="border border-gray-200 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-gray-400">问答 #{i + 1}</span>
+                <button type="button" onClick={() => removeFaq(i)} disabled={form.faq.length <= 1}
+                  className="px-2 py-0.5 text-xs text-red-500 hover:text-red-700 border border-red-200 rounded hover:bg-red-50 disabled:opacity-30 transition-colors"
+                >删除</button>
+              </div>
+              <input
+                type="text" value={f.question} onChange={(e) => updateFaq(i, "question", e.target.value)}
+                placeholder="问题" className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm mb-2"
+              />
+              <textarea
+                value={f.answer} onChange={(e) => updateFaq(i, "answer", e.target.value)}
+                placeholder="答案" className="w-full px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm h-20 resize-y"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* detailFields */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-gray-900">自定义字段</h3>

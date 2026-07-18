@@ -10,6 +10,7 @@ export default function NewEntityPage() {
     lastConfirmedDate: new Date().toISOString().slice(0, 10), personalNote: "",
     imageUrl: "/images/placeholder.svg", lat: "", lon: "",
     detailFields: [{ key: "", value: "" }, { key: "", value: "" }],
+    faq: [{ question: "", answer: "" }],
   };
   return (
     <div>

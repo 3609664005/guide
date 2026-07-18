@@ -23,6 +23,7 @@ export default function EditEntityPage({ params }: EditPageProps) {
     lat: entity.lat?.toString() || "",
     lon: entity.lon?.toString() || "",
     detailFields: Object.entries(entity.detailFields).map(([key, value]) => ({ key, value })),
+    faq: entity.faq?.length ? entity.faq : [{ question: "", answer: "" }],
   };
   if (initialData.detailFields.length === 0) {
     initialData.detailFields = [{ key: "", value: "" }, { key: "", value: "" }];

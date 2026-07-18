@@ -35,5 +35,16 @@ export function generateJsonLd(entity: Entity): Record<string, unknown> {
   }
   if (entity.openingHours) base.openingHours = entity.openingHours;
   if (schemaType === "Restaurant") base.servesCuisine = "本地特色";
+  if (entity.faq && entity.faq.length > 0) {
+    base.mainEntity = entity.faq.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    }));
+  }
+
   return base;
 }

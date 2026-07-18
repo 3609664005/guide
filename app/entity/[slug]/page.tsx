@@ -62,6 +62,20 @@ export default function DetailPage({ params }: DetailPageProps) {
           <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">📝 实测笔记</h2>
           <div className="prose prose-gray max-w-none text-gray-700 leading-relaxed whitespace-pre-line">{entity.personalNote}</div>
         </section>
+        {entity.faq && entity.faq.length > 0 && (
+          <section className="mb-8">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">常见问题 (FAQ)</h2>
+            <div className="space-y-4">
+              {entity.faq.map((item, idx) => (
+                <div key={idx} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">{item.question}</h3>
+                  <p className="text-sm text-gray-700 leading-relaxed">{item.answer}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {Object.keys(entity.detailFields).length > 0 && (
           <section className="mb-8">
             <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">📊 详细信息</h2>

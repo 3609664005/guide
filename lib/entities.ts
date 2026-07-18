@@ -15,6 +15,7 @@ export interface Entity {
   personalNote: string;
   imageUrl: string;
   detailFields: Record<string, string>;
+  faq?: Array<{ question: string; answer: string }>;
 }
 
 const typedEntities = entities as unknown as Entity[];

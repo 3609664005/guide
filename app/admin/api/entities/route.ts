@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       personalNote: body.personalNote || "",
       imageUrl: body.imageUrl || "/images/placeholder.svg",
       detailFields: body.detailFields || {},
+      faq: Array.isArray(body.faq) ? body.faq : [],
     };
 
     const allEntities = getAllEntities();
