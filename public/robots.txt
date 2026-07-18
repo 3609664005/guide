@@ -3,4 +3,4 @@ Allow: /
 Disallow: /api/
 Disallow: /admin/
 
-Sitemap: https://sanya-local-guide.example.com/sitemap.xml
+Sitemap: https://www.touristguide.cn/sitemap.xml
