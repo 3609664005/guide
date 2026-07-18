@@ -3,7 +3,7 @@
   "siteDescription": "万宁吃喝玩乐实地指南 — 所有推荐均经实测验证并带有时间戳，为你提供靠谱的本地实体消费参考。",
   "city": "万宁",
   "categories": ["餐厅", "咖啡馆", "冲浪店", "民宿", "景点"],
-  "baseUrl": "https://wanning-local-guide.example.com",
+  "baseUrl": "https://www.touristguide.cn",
   "about": {
     "title": "关于万宁本地指南",
     "sections": [
