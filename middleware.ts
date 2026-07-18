@@ -15,16 +15,20 @@ export async function middleware(request: NextRequest) {
   if (!pathname.startsWith("/admin")) return NextResponse.next();
 
   // 不需要鉴权的路径
-  const publicPaths = [
-    "/admin/login",
-    "/admin/api/",
-  ];
+  const publicPaths = ["/admin/login", "/admin/api/"];
   const isPublic = publicPaths.some(
     (p) => pathname === p || pathname.startsWith(p + "/") || pathname.startsWith(p)
   );
   if (isPublic) return NextResponse.next();
 
-  // 检查登录态
+  // 检查登录态：如果没有 session cookie 直接拦截
+  const hasSessionCookie = request.cookies.has(sessionOptions.cookieName);
+  if (!hasSessionCookie) {
+    const loginUrl = new URL("/admin/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname === "/admin" ? "/admin/dashboard" : pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
   const response = NextResponse.next();
   const session = await getIronSession<SessionData>(request, response, sessionOptions);
 
@@ -38,5 +42,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: "/((?!_next|api/|favicon.ico|images/|.*\.svg|.*\.png|.*\.jpg|.*\.ico).)*",
+  matcher: ["/admin/:path*", "/((?!_next/static|_next/image|favicon.ico).*)"],
 };
