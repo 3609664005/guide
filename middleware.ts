@@ -3,7 +3,14 @@ import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/session";
 
 export async function middleware(request: NextRequest) {
+  const host = request.headers.get("host") || "";
   const { pathname } = request.nextUrl;
+
+  // 301 redirect: touristguide.cn -> www.touristguide.cn
+  if (host === "touristguide.cn") {
+    const newUrl = new URL(pathname + request.nextUrl.search, "https://www.touristguide.cn");
+    return NextResponse.redirect(newUrl, 301);
+  }
 
   if (!pathname.startsWith("/admin")) return NextResponse.next();
 
@@ -31,5 +38,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: "/admin/:path*",
+  matcher: "/((?!_next|api/|favicon.ico|images/|.*\.svg|.*\.png|.*\.jpg|.*\.ico).)*",
 };
