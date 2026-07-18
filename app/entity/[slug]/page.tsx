@@ -70,9 +70,6 @@ export default function DetailPage({ params }: DetailPageProps) {
             </dl>
           </section>
         )}
-        <section className="rounded-lg bg-gray-100 border border-gray-200 p-4 mt-8">
-          <p className="text-xs text-gray-500">📡 本页面包含 Schema.org 结构化数据（JSON-LD），类型为 <code className="bg-gray-200 px-1 rounded">{jsonLd["@type"] as string}</code>，便于 AI 搜索引擎准确理解和引用。</p>
-        </section>
       </div>
     </>
   );

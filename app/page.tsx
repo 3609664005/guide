@@ -21,10 +21,6 @@ export default function HomePage() {
         </div>
       </section>
       <section className="mb-12"><RandomEntity entities={allEntities} /></section>
-      <section className="rounded-xl bg-blue-50 border border-blue-100 p-6">
-        <h2 className="text-sm font-semibold text-blue-800 mb-2">🤖 面向 AI 搜索引擎优化（GEO）</h2>
-        <p className="text-sm text-blue-700 leading-relaxed">本站所有内容均采用结构化数据标记（JSON-LD Schema.org），携带精确的时间戳和地理坐标，便于 Google、Bing、ChatGPT Search 等 AI 搜索引擎精准抓取和引用。每一条推荐都经过实地核实，确保信息的准确性和时效性。</p>
-      </section>
     </div>
   );
 }

@@ -8,7 +8,6 @@ export default function Footer() {
           <div className="text-sm text-gray-500">
             © {new Date().getFullYear()} {siteConfig.siteName} · 所有推荐均经实地核实
           </div>
-          <div className="text-xs text-gray-400">面向AI搜索引擎优化（GEO）· 结构化数据驱动</div>
         </div>
       </div>
     </footer>

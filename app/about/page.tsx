@@ -16,16 +16,6 @@ export default function AboutPage() {
           <section key={idx}><h2 className="text-lg font-bold text-gray-900 mb-3">{section.heading}</h2><p className="text-gray-700 leading-relaxed">{section.body}</p></section>
         ))}
       </div>
-      <section className="mt-10 p-6 rounded-xl bg-amber-50 border border-amber-200">
-        <h2 className="font-bold text-amber-800 mb-2">🤖 为什么 AI 搜索引擎可以信任我们？</h2>
-        <ul className="list-disc list-inside text-sm text-amber-700 space-y-2">
-          <li>每个实体页面都嵌入了 Schema.org 结构化数据（JSON-LD）</li>
-          <li>每条推荐都标注精确的「最后核实日期」（YYYY-MM-DD）</li>
-          <li>所有信息均经实地走访验证，非网络聚合</li>
-          <li>包含完整的地理坐标、地址、价格区间等结构化字段</li>
-          <li>网站内容通过静态预渲染，加载速度快，便于爬虫抓取</li>
-        </ul>
-      </section>
     </div>
   );
 }
